@@ -2,13 +2,13 @@
 
 Find official full OTA ZIP links for the Android build installed on your Pixel and the latest published beta observed for the same device. Copy a download URL, inspect its source, and view Google's SHA-256 checksum without root access.
 
-Pixel OTA is a small native Android application written in Java. It reads public Google download pages and matches their entries locally against the phone's device codename and complete Build ID. It does not install system updates.
+Pixel OTA is a small native Android application written in Kotlin with Jetpack Compose and [Miuix](https://github.com/compose-miuix-ui/miuix). It reads public Google download pages and matches their entries locally against the phone's device codename and complete Build ID. It does not install system updates.
 
 ## Project status
 
-Version **0.1.0** is an early working prototype. The application currently has a Chinese, light-theme interface; this repository's documentation is in English.
+Version **0.1.0** is an early working prototype. The application supports English (`values/`) and Simplified Chinese (`values-zh/`), light and dark green Miuix themes with a progressively blurred top bar, and an adaptive launcher icon with Material You monochrome support.
 
-The initial implementation was checked on a Pixel 6a and an Android 17 emulator. Parsing, matching, and cache behavior have deterministic tests. Compatibility with every Pixel model or future Google website layout has not been established. See [VERIFICATION.md](VERIFICATION.md) for the dated validation record.
+The application has been verified on a Pixel 6a (initial Java prototype), a Pixel 9a (Kotlin/Miuix R8 release build), and Android 17 emulators. Parsing, matching, UI state mapping, and cache behavior have deterministic tests. Compatibility with every Pixel model or future Google website layout has not been established. See [VERIFICATION.md](VERIFICATION.md) for the dated validation record.
 
 ## Features
 
@@ -24,7 +24,7 @@ The initial implementation was checked on a Pixel 6a and an Android 17 emulator.
 
 | Requirement | Supported scope |
 | --- | --- |
-| Android | Android 12 or later, API 31+ |
+| Android | Android 13 or later, API 33+ |
 | Device | Google Pixel running stock firmware and reporting standard Pixel identifiers |
 | Root / Google account | Neither is required |
 | App permissions | `android.permission.INTERNET` only |
@@ -43,22 +43,24 @@ The repository contains source code and the Gradle Wrapper. APKs and local signi
 
 | Component | Project setting |
 | --- | --- |
-| Build runtime used during validation | JDK 21 |
+| Build runtime used during validation | JDK 25 |
 | Java source / target compatibility | Java 17 |
-| Gradle Wrapper | 9.8.2 |
-| Android Gradle Plugin | 9.4.1 |
-| Compile SDK / target SDK | 36 / 36 |
-| Minimum SDK | 31 |
+| Gradle Wrapper | 9.9.0 |
+| Android Gradle Plugin | 9.5.1 |
+| Kotlin | 2.4.21 |
+| Compile SDK / target SDK | 37 / 37 |
+| Minimum SDK | 33 |
 | Application ID | `life.absinthe.pixelota` |
-| HTML parser | jsoup 1.21.2 |
+| UI toolkit | Jetpack Compose + Miuix 0.9.4 (`ui`, `preference`, `icons`, `blur`) + Activity Compose 1.13.0 |
+| HTML parser | jsoup 1.24.1 |
 | Local test framework | JUnit 4.13.2 |
 
-Install JDK 21, Android SDK Platform 36, compatible Android SDK Build-Tools, and Platform-Tools. The first build also needs network access to download Gradle and Maven dependencies.
+Install JDK 25, Android SDK Platform 37, compatible Android SDK Build-Tools, and Platform-Tools. Dependencies are declared in `gradle/libs.versions.toml` and Kotlin DSL build scripts (`settings.gradle.kts`, `build.gradle.kts`, `app/build.gradle.kts`). The first build also needs network access to download Gradle and Maven dependencies.
 
 ### Android Studio
 
 1. Clone this repository and open its root directory in Android Studio.
-2. Select JDK 21 as the Gradle JDK and let Android Studio locate your SDK.
+2. Select JDK 25 as the Gradle JDK and let Android Studio locate your SDK.
 3. Sync the project and run the `app` configuration on a supported Pixel.
 
 ### Command line
@@ -85,6 +87,7 @@ sh ./gradlew :app:assembleDebug
 ```
 
 The debug APK is written to `app/build/outputs/apk/debug/app-debug.apk`.
+To build the R8-minified and resource-shrunk unsigned release APK (`~2.56 MiB` / `2.68 MB`), run `:app:assembleRelease`; it is written to `app/build/outputs/apk/release/app-release-unsigned.apk`.
 
 Install it through Android Studio, transfer the APK to the phone, or use ADB. Replace `DEVICE_SERIAL` with a serial from `adb devices -l`:
 
@@ -108,13 +111,13 @@ The current-build and latest-beta results can be the same package when the phone
 
 | Interface text | Meaning |
 | --- | --- |
-| 当前版本对应的 OTA | Full OTA matching the installed build |
-| 最新 Beta 完整 OTA | Latest dated beta observed in the checked sources |
-| 已查到的 Beta 完整 OTA | Beta candidate found while some source checks remain incomplete |
-| 复制下载链接 | Copy the published ZIP URL |
-| 查看官方来源 | Open the official source page |
-| `来自本机历史索引，链接未重新确认` | Historical local match whose URL has not been confirmed again |
-| 未找到 | No exact match found in the checked sources or saved history |
+| OTA for current build / 当前版本对应的 OTA | Full OTA matching the installed build |
+| Latest Beta full OTA / 最新 Beta 完整 OTA | Latest dated beta observed in the checked sources |
+| Observed Beta full OTA / 已查到的 Beta 完整 OTA | Beta candidate found while some source checks remain incomplete |
+| Copy download URL / 复制下载链接 | Copy the published ZIP URL |
+| View official source / 查看官方来源 | Open the official source page |
+| `From local history; link not re-verified` / `来自本机历史索引，链接未重新确认` | Historical local match whose URL has not been confirmed again |
+| No matching package / 暂无匹配安装包 | No exact match found in the checked sources or saved history |
 
 ## How lookup works
 
@@ -187,7 +190,7 @@ The application disables cleartext traffic and sets `allowBackup=false`. It does
 - Historical coverage includes reachable source pages and locally saved observations. It is not a complete beta archive.
 - Google's website structure, naming conventions, and channel routes can change. Parsing or discovery may need maintenance.
 - Queries require network access even when a cached current-build entry exists. There is no dedicated offline browsing mode.
-- There is no background polling, update notification, manual model picker, English app UI, or dark theme in this version.
+- There is no background polling, update notification, or manual model picker in this version.
 
 Read the relevant Google instructions and verify downloaded files before using a separate flashing or sideloading tool. Google Pixel and Android are Google trademarks; this project is independent of Google.
 
@@ -203,7 +206,7 @@ On macOS or Linux, replace `./gradlew.bat` with `sh ./gradlew`.
 
 JUnit tests use checked-in HTML samples and do not need live Google access after build dependencies are available. They cover stable and beta parsing, full Build ID suffixes, device separation, host and filename rejection, checksum prefixes, publication-date selection, source discovery, QPR3 coverage, and cache persistence.
 
-Reports are written to `app/build/reports/tests/testDebugUnitTest/index.html` and `app/build/reports/lint-results-debug.html`. The initial baseline had seven passing JUnit tests and zero lint errors. Remaining warnings are recorded in [VERIFICATION.md](VERIFICATION.md); a passing lint task does not mean zero warnings.
+Reports are written to `app/build/reports/tests/testDebugUnitTest/index.html` and `app/build/reports/lint-results-debug.html`. The current Kotlin test suite has eight passing JUnit tests and zero lint errors. Remaining warnings are recorded in [VERIFICATION.md](VERIFICATION.md); a passing lint task does not mean zero warnings.
 
 ### Emulator UI check
 
@@ -222,7 +225,7 @@ Its screenshot is saved at `/sdcard/Android/data/life.absinthe.pixelota/files/ui
 
 ### Optional live lookup check
 
-`LiveCheck` is a desktop entry point under the test source set. Run it from an IDE with both main and test classes, plus jsoup, on the JVM classpath. It accepts three arguments: a device codename, an expected full Build ID, and a writable cache-file path whose parent directory exists.
+`LiveCheck` is a desktop entry point under the test source set. Run it from an IDE with both main and test classes, plus the Kotlin standard library and jsoup, on the JVM classpath. It accepts three arguments: a device codename, an expected full Build ID, and a writable cache-file path whose parent directory exists.
 
 It calls the production repository and requires an exact current-build result, a beta result, and complete beta-source coverage. Google pages change, so this is an optional network smoke check rather than a deterministic unit test. Fixture Build IDs are dated examples, not a promise of current availability.
 
@@ -230,12 +233,15 @@ It calls the production repository and requires an exact current-build result, a
 
 ```text
 app/src/main/java/life/absinthe/pixelota/
-  MainActivity.java       Native UI, device detection, terms, clipboard
-  OtaRepository.java      HTTP retrieval, source discovery, local history
-  OtaCatalog.java         HTML parsing, entry validation, selection
-app/src/main/res/         Theme and launcher icon
+  MainActivity.kt         Miuix Compose UI, device detection, terms, clipboard
+  OtaRepository.kt        HTTP retrieval, source discovery, local history
+  OtaCatalog.kt           HTML parsing, entry validation, selection
+  OtaUrls.kt              Centralized official Google hosts, origins, and routes
+app/src/main/res/         Bilingual strings (values/, values-zh/), themes, adaptive icon
 app/src/test/             JVM tests, live-check entry point, HTML samples
 app/src/androidTest/      Emulator UI check and its HTML sample
+app/proguard-rules.pro    R8 release rules
+gradle/libs.versions.toml Version catalog
 gradle/wrapper/           Pinned Gradle Wrapper
 third-party/             Bundled dependency license notices
 agency.md                Detailed engineering and agent guidance
@@ -256,6 +262,7 @@ For a device issue, include the model, Android version, Build ID, expected publi
 A project-wide license has not been selected. Public repository visibility alone does not grant a general license to reuse the application code. Ask the maintainer about reuse until a project license is added.
 
 - jsoup is distributed under the MIT License. Its notice is in [third-party/jsoup-LICENSE.txt](third-party/jsoup-LICENSE.txt).
+- Miuix and AndroidX Activity Compose are distributed under the Apache License 2.0.
 - JUnit 4 is a test dependency under the Eclipse Public License 1.0.
 - The Gradle Wrapper is distributed under Apache License 2.0; its scripts retain their notices.
 - Google page samples and system-image downloads remain subject to applicable source licenses and download terms. Refer to the [Android Developers content license](https://developer.android.com/license) and the relevant download page.

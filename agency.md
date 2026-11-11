@@ -10,17 +10,18 @@ Keep the existing query-and-copy workflow small. Flashing, incremental-update ex
 
 ## Read before changing code
 
-Read the relevant implementation and every caller of a method you plan to change. The production path has three classes:
+Read the relevant implementation and every caller of a method you plan to change. The production path is organized into four Kotlin files:
 
 | File | Responsibilities |
 | --- | --- |
-| `MainActivity.java` | Read local build fields, identify supported devices, acknowledge terms, run queries off the UI thread, render state, open sources, and copy URLs |
-| `OtaRepository.java` | Fetch official pages, discover sources, report failures, combine live entries with local history, and persist observations |
-| `OtaCatalog.java` | Parse public HTML, validate entries, match exact builds, and select a dated beta for a device |
+| `MainActivity.kt` | Read local build fields, identify supported devices, acknowledge terms, run queries off the UI thread, render Miuix Compose state, open sources, and copy URLs |
+| `OtaRepository.kt` | Fetch official pages, discover sources, report structured failures/warnings, combine live entries with local history, and persist observations |
+| `OtaCatalog.kt` | Parse public HTML, validate entries, match exact builds, and select a dated beta for a device |
+| `OtaUrls.kt` | Centralize official Google hosts, origins, catalog URLs, and QPR route builders |
 
-Keep parsing and matching testable on the JVM. Keep Android view and clipboard work in the activity. Use the existing Java and native View approach for scoped changes; a new UI framework or architecture is not a prerequisite for fixing this app.
+Keep parsing and matching testable on the JVM. Keep Android UI, resource formatting, and clipboard work in the activity. Do not introduce hardcoded UI strings in `OtaRepository`, `OtaCatalog`, or `MainActivity`; map structured `Warning` / `FetchError` / `UiStatus` states to `strings.xml` (`values/` and `values-zh/`).
 
-The main APK has one external runtime dependency, jsoup. JUnit belongs to the local test source set. Reuse the platform or existing dependencies before adding another library.
+Dependencies are managed via the Gradle Version Catalog (`gradle/libs.versions.toml`) and Kotlin DSL build scripts (`settings.gradle.kts`, `build.gradle.kts`, `app/build.gradle.kts`). Runtime dependencies are `androidx.activity:activity-compose`, Miuix (`miuix-ui`, `miuix-preference`, `miuix-icons`, `miuix-blur`), and `org.jsoup:jsoup`; `junit` belongs to the local test source set. Release builds enable R8 (`isMinifyEnabled = true`), resource shrinking (`isShrinkResources = true`), `app/proguard-rules.pro`, and packaging excludes; check release APK size and runtime behavior when adding dependencies.
 
 ## Correctness rules
 
@@ -60,18 +61,18 @@ The main APK has one external runtime dependency, jsoup. JUnit belongs to the lo
 
 ## UI and Android lifecycle
 
-Use the existing system-font, light-green utility interface unless the task changes its design. Keep readable version identifiers, selectable checksums, full-width touch targets, and system-bar/cutout insets on the scroll container.
+Use the Jetpack Compose + Miuix light/dark green utility interface with progressive TopAppBar blur (`progressiveTextureBlur`). Keep readable version identifiers, selectable checksums, full-width touch targets, and system-bar/cutout insets on the scroll container.
 
 Network work belongs off the main thread. Preserve activity-destruction checks before rendering asynchronous results and cancel the worker when the activity is destroyed. Render loading, empty, partial, historical, success, and error states honestly.
 
-The current UI is Chinese. English repository documentation does not imply English app localization. A localization task must include visible strings, accessibility descriptions, and tests that depend on text.
+The app provides default English strings (`app/src/main/res/values/strings.xml`) and Simplified Chinese strings (`app/src/main/res/values-zh/strings.xml`). UI changes must update both locales, accessibility descriptions, and resource-backed assertions in `UiCheck.kt`.
 
 ## Verification workflow
 
-From the repository root with JDK 21 and Android SDK Platform 36 configured:
+From the repository root with JDK 25 (or configured Gradle daemon JVM) and Android SDK Platform 37 configured:
 
 ```powershell
-./gradlew.bat :app:assembleDebug :app:testDebugUnitTest :app:lintDebug
+./gradlew.bat :app:assembleDebug :app:assembleRelease :app:testDebugUnitTest :app:lintDebug
 ```
 
 Use `sh ./gradlew` instead of `./gradlew.bat` on macOS or Linux. Do not commit `local.properties` or a machine-specific SDK path.

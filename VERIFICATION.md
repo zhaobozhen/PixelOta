@@ -53,3 +53,21 @@ Device screenshots, serial numbers, local SDK paths, signing keys, application-p
 - The app has a Chinese light-theme UI and no dedicated offline browsing mode.
 - Native UI appearance and network reachability vary by device and environment.
 - APK signing verification confirms the development APK's signature, not the authenticity of an OTA package.
+
+## Kotlin, Miuix, bilingual, R8, and adaptive icon migration: 2026-11-11
+
+After migrating to Kotlin, Gradle Version Catalog + `.kts` scripts, Compose + Miuix `0.9.4` (light/dark green themes with progressive `progressiveTextureBlur` top bar), centralized `OtaUrls`, bilingual `values/` (English) + `values-zh/` (Chinese) resources, `minSdk 33` / `compileSdk 37` / `targetSdk 37`, R8 release minification + resource shrinking, and an adaptive launcher icon (`ic_launcher` + `ic_launcher_round` + `monochrome`), the final build and runtime checks observed:
+
+| Check | Observed result |
+| --- | --- |
+| `:app:assembleDebug` and `:app:assembleRelease` | Passed with Gradle `9.9.0`, AGP `9.5.1`, Kotlin `2.4.21`, JDK 25; unsigned R8 release APK size reduced from `23.6 MiB` (earlier unminified build) to `2,681,950` bytes (`2.56 MiB` / `2.68 MB`) |
+| `:app:testDebugUnitTest` | Eight tests in `OtaCatalogTest` passed, zero failures, zero skipped |
+| `:app:lintDebug` | Passed with zero errors and three warnings (`ObsoleteLintCustomCheck` in upstream `lifecycle-runtime`, `AndroidGradlePluginVersion` noting Gradle `9.9.1`, `DataExtractionRules`) |
+| Android 17 emulator `UiCheck` | `INSTRUMENTATION_RESULT: checks=empty, partial, populated, clipboard exact URL: PASS; fixture UI only` (`INSTRUMENTATION_CODE: -1`); English light-mode screenshot visually inspected |
+| Physical Pixel 9a on Android 17 (`tegu`, Build ID `CP3A.261005.005`) | Temporarily debug-signed R8 release APK installed (`2.99 MB` reported app storage); live query matched exact installed stable OTA (`tegu-ota-cp3a.261005.005-c83a4af1.zip`) and latest dated Beta (`tegu_beta-ota-dp11.261016.003-5d0fde5f.zip`, released `2026-10-29`); inspected progressive top-bar blur during scroll, `"More"` menu -> Google terms dialog, `"Copy download URL"` Snackbar + clipboard preview, and adaptive launcher icon in App Info |
+
+### Skipped checks and remaining gaps for 2026-11-11
+
+- `LiveCheck` desktop main was not invoked separately because live network lookup was exercised directly on the physical Pixel 9a against official Google pages.
+- Gradle Wrapper remains pinned at `9.9.0` (matching Miuix) rather than `9.9.1` due to slow upstream download during setup.
+- The release APK was signed only temporarily in `/tmp` with a local debug keystore for physical-device validation of the R8 build; production release signing remains external to the repository.
